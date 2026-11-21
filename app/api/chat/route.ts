@@ -118,7 +118,8 @@ export async function POST(req: Request) {
 
     const guestChatEnabled = process.env.ENABLE_GUEST_CHAT === 'true'
     const isGuest = !userId
-    const isOwner = isOwnerUser(userId)
+    // Anonymous mode shares one ID across visitors, so it must never receive owner privileges.
+    const isOwner = !anonymous && isOwnerUser(userId)
 
     if (exceedsAttachmentLimit({ isGuest, trigger, message, messages })) {
       return new Response(
@@ -162,7 +163,8 @@ export async function POST(req: Request) {
       if (guestLimitResponse) return guestLimitResponse
     }
 
-    const usageBudgetAvailable = !isGuest && !isOwner && isUsageBudgetAvailable()
+    const usageBudgetAvailable =
+      !isGuest && !isOwner && isUsageBudgetAvailable()
     if (
       usageBudgetAvailable &&
       ENFORCEMENT === 'on' &&
