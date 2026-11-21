@@ -9,6 +9,7 @@ import {
   trackChatEvent
 } from '@/lib/analytics'
 import { getCurrentUser, getCurrentUserId } from '@/lib/auth/get-current-user'
+import { isOwnerUser } from '@/lib/auth/owner'
 import { isAnonymousMode } from '@/lib/auth/provider'
 import { getUserMessageIds } from '@/lib/db/actions'
 import { generateId } from '@/lib/db/schema'
@@ -117,6 +118,8 @@ export async function POST(req: Request) {
 
     const guestChatEnabled = process.env.ENABLE_GUEST_CHAT === 'true'
     const isGuest = !userId
+    // Anonymous mode shares one ID across visitors, so it must never receive owner privileges.
+    const isOwner = !anonymous && isOwnerUser(userId)
 
     if (exceedsAttachmentLimit({ isGuest, trigger, message, messages })) {
       return new Response(
@@ -160,7 +163,8 @@ export async function POST(req: Request) {
       if (guestLimitResponse) return guestLimitResponse
     }
 
-    const usageBudgetAvailable = !isGuest && isUsageBudgetAvailable()
+    const usageBudgetAvailable =
+      !isGuest && !isOwner && isUsageBudgetAvailable()
     if (
       usageBudgetAvailable &&
       ENFORCEMENT === 'on' &&
@@ -231,7 +235,7 @@ export async function POST(req: Request) {
       )
     }
 
-    if (!isGuest) {
+    if (!isGuest && !isOwner) {
       const overallLimitResponse = await checkAndEnforceOverallChatLimit(userId)
       if (overallLimitResponse) return overallLimitResponse
 
