@@ -9,6 +9,7 @@ import {
   SidebarContent,
   SidebarHeader,
   SidebarMenu,
+  SidebarMenuButton,
   SidebarRail,
   SidebarTrigger
 } from '@/components/ui/sidebar'
@@ -37,6 +38,14 @@ export default function AppSidebar() {
         <SidebarMenu>
           <NewChatMenuItem />
           {libraryAvailable && <LibraryMenuItem />}
+          {libraryAvailable && (
+            <SidebarMenuButton asChild>
+              <Link href="/algorithms">
+                <span aria-hidden="true">⌘</span>
+                <span>Algorithm Forge</span>
+              </Link>
+            </SidebarMenuButton>
+          )}
         </SidebarMenu>
         <div className="flex-1 overflow-y-auto">
           <Suspense fallback={<ChatHistorySkeleton />}>
