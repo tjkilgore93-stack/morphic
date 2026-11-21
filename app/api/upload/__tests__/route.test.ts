@@ -106,12 +106,15 @@ describe('POST /api/upload', () => {
   })
 
   it('rejects oversized request bodies before parsing multipart data', async () => {
-    const req = uploadRequest(1234, undefined, undefined, String(5 * 1024 * 1024 + 64 * 1024 + 1))
+    const maxRequestSize = 5 * 1024 * 1024 + 64 * 1024
+    const req = uploadRequest(1234, undefined, undefined, String(maxRequestSize + 1))
 
     const response = await POST(req)
 
     expect(response.status).toBe(413)
-    expect(await response.json()).toMatchObject({ error: 'Request too large (max 5MB file)' })
+    expect(await response.json()).toMatchObject({
+      error: 'Request too large (max 5MB file)'
+    })
     expect(req.formData).not.toHaveBeenCalled()
     expect(send).not.toHaveBeenCalled()
   })
@@ -168,8 +171,8 @@ describe('POST /api/upload', () => {
         )
       ).json()
 
-      expect(file.key).toMatch(/^user-1\\/chats\\/chat-1\\//)
-      expect(file.key).not.toContain('\\\\')
+      expect(file.key.startsWith('user-1/chats/chat-1/')).toBe(true)
+      expect(file.key).not.toContain('\\')
       expect(file.key.split('/')).toHaveLength(4)
       expect(send).toHaveBeenCalledOnce()
     }
