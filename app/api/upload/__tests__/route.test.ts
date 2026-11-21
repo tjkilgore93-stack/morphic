@@ -53,7 +53,8 @@ const EXISTING = {
 function uploadRequest(
   bytes = 1234,
   contents = pdfUploadBytes(bytes),
-  declared = { name: 'report.pdf', type: 'application/pdf' }
+  declared = { name: 'report.pdf', type: 'application/pdf' },
+  contentLength?: string
 ) {
   const file = {
     name: declared.name,
@@ -67,8 +68,17 @@ function uploadRequest(
   ])
 
   return {
-    headers: { get: () => 'multipart/form-data; boundary=x' },
-    formData: async () => ({ get: (key: string) => formData.get(key) ?? null })
+    headers: {
+      get: (key: string) =>
+        key === 'content-type'
+          ? 'multipart/form-data; boundary=x'
+          : key === 'content-length'
+            ? (contentLength ?? null)
+            : null
+    },
+    formData: vi.fn(async () => ({
+      get: (key: string) => formData.get(key) ?? null
+    }))
   } as any
 }
 
@@ -94,6 +104,37 @@ describe('POST /api/upload', () => {
       objectKey: 'user-1/chats/chat-1/1800000000000-report.pdf'
     } as any)
   })
+
+  it('rejects oversized request bodies before parsing multipart data', async () => {
+    const maxRequestSize = 5 * 1024 * 1024 + 64 * 1024
+    const req = uploadRequest(
+      1234,
+      undefined,
+      undefined,
+      String(maxRequestSize + 1)
+    )
+
+    const response = await POST(req)
+
+    expect(response.status).toBe(413)
+    expect(await response.json()).toMatchObject({
+      error: 'Request too large (max 5MB file)'
+    })
+    expect(req.formData).not.toHaveBeenCalled()
+    expect(send).not.toHaveBeenCalled()
+  })
+
+  it.each(['not-a-number', '1e3', '-1'])(
+    'rejects malformed content-length header %s before multipart parsing',
+    async contentLength => {
+      const req = uploadRequest(1234, undefined, undefined, contentLength)
+
+      const response = await POST(req)
+
+      expect(response.status).toBe(400)
+      expect(req.formData).not.toHaveBeenCalled()
+    }
+  )
 
   it('reuses the stored copy when the same file is uploaded again', async () => {
     vi.mocked(dbActions.findChatFileCandidates).mockResolvedValue([
@@ -123,6 +164,27 @@ describe('POST /api/upload', () => {
     })
     expect(dbActions.createLibraryFile).toHaveBeenCalled()
   })
+
+  it.each(['../../secret.pdf', '..\\\\secret.pdf'])(
+    'keeps traversal-style filename %s inside the user object prefix',
+    async filename => {
+      vi.mocked(dbActions.findChatFileCandidates).mockResolvedValue([])
+
+      const { file } = await (
+        await POST(
+          uploadRequest(1234, pdfUploadBytes(), {
+            name: filename,
+            type: 'application/pdf'
+          })
+        )
+      ).json()
+
+      expect(file.key.startsWith('user-1/chats/chat-1/')).toBe(true)
+      expect(file.key).not.toContain('\\')
+      expect(file.key.split('/')).toHaveLength(4)
+      expect(send).toHaveBeenCalledOnce()
+    }
+  )
 
   it('uploads when nothing matches', async () => {
     vi.mocked(dbActions.findChatFileCandidates).mockResolvedValue([])

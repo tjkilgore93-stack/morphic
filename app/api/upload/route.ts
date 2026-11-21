@@ -22,6 +22,8 @@ import {
 } from '@/lib/storage/r2-client'
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
+// Allow bounded multipart framing while rejecting oversized bodies before parsing.
+const MAX_REQUEST_SIZE = MAX_FILE_SIZE + 64 * 1024
 
 export async function POST(req: NextRequest) {
   try {
@@ -47,6 +49,29 @@ export async function POST(req: NextRequest) {
         { error: 'Invalid content type' },
         { status: 400 }
       )
+    }
+
+    const contentLength = req.headers.get('content-length')
+    if (contentLength !== null) {
+      if (!/^\d+$/.test(contentLength)) {
+        return NextResponse.json(
+          { error: 'Invalid content length' },
+          { status: 400 }
+        )
+      }
+      const requestSize = Number(contentLength)
+      if (!Number.isSafeInteger(requestSize)) {
+        return NextResponse.json(
+          { error: 'Invalid content length' },
+          { status: 400 }
+        )
+      }
+      if (requestSize > MAX_REQUEST_SIZE) {
+        return NextResponse.json(
+          { error: 'Request too large (max 5MB file)' },
+          { status: 413 }
+        )
+      }
     }
 
     const formData = await req.formData()
