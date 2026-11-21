@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
 
     const contentLength = req.headers.get('content-length')
     if (contentLength !== null) {
-      if (!/^\\d+$/.test(contentLength)) {
+      if (!/^\d+$/.test(contentLength)) {
         return NextResponse.json(
           { error: 'Invalid content length' },
           { status: 400 }
