@@ -107,7 +107,12 @@ describe('POST /api/upload', () => {
 
   it('rejects oversized request bodies before parsing multipart data', async () => {
     const maxRequestSize = 5 * 1024 * 1024 + 64 * 1024
-    const req = uploadRequest(1234, undefined, undefined, String(maxRequestSize + 1))
+    const req = uploadRequest(
+      1234,
+      undefined,
+      undefined,
+      String(maxRequestSize + 1)
+    )
 
     const response = await POST(req)
 
