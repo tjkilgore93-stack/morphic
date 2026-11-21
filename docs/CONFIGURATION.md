@@ -225,6 +225,32 @@ precedence over `ENABLE_AUTH`.
 with a clear error when the resolved provider is `none` or any non-Supabase
 provider.
 
+### Owner Entitlement
+
+A self-hosted or privately operated Morphic instance can grant its owner an
+application-level usage exemption. Set `MORPHIC_OWNER_USER_IDS` to a
+comma-separated list of authenticated Morphic user IDs:
+
+```bash
+MORPHIC_OWNER_USER_IDS=your-auth-user-id
+```
+
+The allowlist is evaluated server-side against the ID returned by the configured
+auth provider. It is not based on a browser flag, email address, or user-editable
+role. With an owner ID configured, that account bypasses Morphic's daily chat
+limit, Adaptive-mode daily limit, and monthly/hourly application usage budget.
+Usage analytics and provider/infrastructure safeguards remain in place.
+
+Find the ID in the identity provider used by this instance:
+- **Supabase:** Authentication → Users → select your account → copy its User UID.
+- **Better Auth:** inspect the `id` field for your account in the
+  `user` table.
+
+Keep this variable server-only. Never prefix it with `NEXT_PUBLIC_`.
+This exemption does not make paid model-provider requests, hosting, database,
+Redis, or other third-party services free; those providers may still bill the
+instance owner.
+
 ### Anonymous Mode (Default)
 
 For personal, single-user environments.
