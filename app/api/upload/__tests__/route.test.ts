@@ -124,14 +124,17 @@ describe('POST /api/upload', () => {
     expect(send).not.toHaveBeenCalled()
   })
 
-  it('rejects malformed content-length headers before parsing multipart data', async () => {
-    const req = uploadRequest(1234, undefined, undefined, 'not-a-number')
+  it.each(['not-a-number', '1e3', '-1'])(
+    'rejects malformed content-length header %s before multipart parsing',
+    async contentLength => {
+      const req = uploadRequest(1234, undefined, undefined, contentLength)
 
-    const response = await POST(req)
+      const response = await POST(req)
 
-    expect(response.status).toBe(400)
-    expect(req.formData).not.toHaveBeenCalled()
-  })
+      expect(response.status).toBe(400)
+      expect(req.formData).not.toHaveBeenCalled()
+    }
+  )
 
   it('reuses the stored copy when the same file is uploaded again', async () => {
     vi.mocked(dbActions.findChatFileCandidates).mockResolvedValue([
